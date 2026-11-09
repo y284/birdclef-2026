@@ -1,0 +1,62 @@
+{
+  "models": [
+    "outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed42_best.pt",
+    "outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed43_best.pt",
+    "outputs/iter1_e15_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter1_split_seed42_best.pt",
+    "outputs/iter1_e15_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter1_split_seed43_best.pt",
+    "outputs/iter2_e25_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter2_split_seed42_best.pt",
+    "outputs/iter2_e25_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter2_split_seed43_best.pt",
+    "outputs/iter2_e25_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter2_split_seed42_best.pt",
+    "outputs/iter2_e25_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter2_split_seed43_best.pt"
+  ],
+  "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+  "threads": 4,
+  "soundscapes": 13,
+  "segments": 156,
+  "classes_evaluated": 179,
+  "log_mel_sec_per_soundscape": 0.0185,
+  "backends": {
+    "pytorch_fp32": {
+      "sec_per_soundscape": 0.7184,
+      "precision": "f32",
+      "max_abs_diff": 0.0,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.941930209728142
+    },
+    "onnxruntime_fp32": {
+      "sec_per_soundscape": 0.2489,
+      "precision": "f32",
+      "max_abs_diff": 7.62939453125e-06,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.941930209728142
+    },
+    "onnxruntime_fp16": {
+      "sec_per_soundscape": 0.2369,
+      "precision": "f16",
+      "max_abs_diff": 0.00786590576171875,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.9419181557262132
+    },
+    "openvino_fp32": {
+      "sec_per_soundscape": 0.1857,
+      "precision": "f32",
+      "max_abs_diff": 2.002716064453125e-05,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.941930209728142
+    },
+    "openvino_fp16": {
+      "sec_per_soundscape": 0.183,
+      "precision": "f32",
+      "max_abs_diff": 2.002716064453125e-05,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.941930209728142
+    },
+    "openvino_bf16": {
+      "sec_per_soundscape": 0.1846,
+      "precision": "f32",
+      "max_abs_diff": 2.002716064453125e-05,
+      "auc_windows": 0.9392899270020874,
+      "auc_smoothed": 0.941930209728142
+    }
+  }
+}

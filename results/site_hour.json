@@ -1,0 +1,29 @@
+{
+  "models": [
+    "outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed42_best.pt",
+    "outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed43_best.pt",
+    "outputs/iter1_e15_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter1_split_seed42_best.pt",
+    "outputs/iter1_e15_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter1_split_seed43_best.pt",
+    "outputs/iter2_e25_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter2_split_seed42_best.pt",
+    "outputs/iter2_e25_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter2_split_seed43_best.pt",
+    "outputs/iter2_e25_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter2_split_seed42_best.pt",
+    "outputs/iter2_e25_pow1_mix2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_pl-iter2_split_seed43_best.pt"
+  ],
+  "soundscapes": 10658,
+  "sites": 23,
+  "hours": 18,
+  "auc": {
+    "sigmoid": {
+      "none": 0.9420164303274927,
+      "site": 0.9385155288580332,
+      "hour": 0.949072830607627,
+      "site_and_hour": 0.9453796311470442
+    },
+    "softmax": {
+      "none": 0.8589259360552524,
+      "site": 0.8614172936127019,
+      "hour": 0.8823690070603657,
+      "site_and_hour": 0.8640904728006898
+    }
+  }
+}

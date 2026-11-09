@@ -1,0 +1,10 @@
+data/
+models/
+outputs/
+*.zip
+*.log
+__pycache__/
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/

@@ -1,0 +1,30 @@
+{
+  "windows": 504,
+  "batch": 32,
+  "cuda": {
+    "ms_per_batch": 127.33,
+    "non_finite_rows": 0
+  },
+  "tensorrt": {
+    "ms_per_batch": 30.87,
+    "non_finite_rows": 10,
+    "max_abs_diff": 0.8747756481170654,
+    "min_cosine": 0.4774017632007599,
+    "speedup": 4.12
+  },
+  "tensorrt-fp32": {
+    "ms_per_batch": 208.35,
+    "non_finite_rows": 0,
+    "max_abs_diff": 0.01926371455192566,
+    "min_cosine": 0.9989418983459473,
+    "speedup": 0.61
+  },
+  "split": {
+    "ms_per_batch": 27.77,
+    "fallback_rows": 9,
+    "non_finite_rows": 0,
+    "max_abs_diff": 0.004121840000152588,
+    "min_cosine": 0.9999805688858032,
+    "speedup": 4.59
+  }
+}

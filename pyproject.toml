@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "birdclef-2026"
+version = "0.1.0"
+description = "CNN on log-mel spectrograms for bird and wildlife sound detection in field recordings (BirdCLEF+ 2026, 42nd / 4,091)"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = ["torch>=2.3", "timm", "numpy", "pandas", "scipy", "scikit-learn", "soundfile>=0.12", "onnx", "onnxscript", "openvino"]
+
+[project.optional-dependencies]
+perch = ["onnxruntime-gpu"]
+notebooks = ["ipykernel", "matplotlib"]
+dev = ["pytest", "ruff", "onnxruntime"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
+ignore = ["B905"]
