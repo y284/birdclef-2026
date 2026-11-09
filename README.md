@@ -56,7 +56,11 @@ python -m birdclef.sitehour --models $ENSEMBLE
 
 **Audio.** Every OGG file (training clips and soundscapes) is decoded once to mono 16-bit WAV at 32 kHz (`birdclef.prepare`), so training reads any crop directly instead of decoding the whole file.
 
-**Perch features.** Perch v2 (ONNX) runs on every 5 s window with a 1 s stride. Its logits are kept for the 203 of 234 species it covers (matched by scientific name; not covered: 25 sonotypes, 3 frogs, 2 primates, a caiman) and normalized per species: mean over all windows → 0, 99th percentile over the species' own clips → 1. Unlike softmax, this keeps overlapping species visible ([softmax](results/perch_curves_clips_softmax.png) vs [normalized](results/perch_curves_clips_normalized.png)). Each second gets the weighted mean of the 5 windows covering it (weights 0.1, 0.3, 0.6, 0.3, 0.1). Species where Perch scores a clip ROC-AUC above 0.9 are *trusted*: 195 of 203.
+**Perch features.** Perch v2 (ONNX) runs on every 5 s window with a 1 s stride. Its logits are kept for the 203 of 234 species it covers (matched by scientific name; not covered: 25 sonotypes, 3 frogs, 2 primates, a caiman) and normalized per species: mean over all windows → 0, 99th percentile over the species' own clips → 1. Unlike softmax, this keeps overlapping species visible. Each second gets the weighted mean of the 5 windows covering it (weights 0.1, 0.3, 0.6, 0.3, 0.1). Species where Perch scores a clip ROC-AUC above 0.9 are *trusted*: 195 of 203.
+
+![Perch softmax vs normalized logits on one training clip](results/softmax_vs_normalized.png)
+
+*One training clip (primary whlspi1, secondaries undtin1 and chacha1), per-second Perch curves. Left: softmax, where the primary species dominates, undtin1 shows only where whlspi1 dips and chacha1 never rises above 0.03. Right: normalized logits, where both secondary species show up where they call; these curves drive the crop selection (`--selection perch`) and the pseudo targets (`--pseudo`).*
 
 **Model.** Log-mel at 32 frames/s → EfficientNet-B0 (time ÷ 32, so one frame per second) → GeM over frequency → per-second logits, attention-pooled into clip logits. Masked cross-entropy, EMA of the weights, bf16/fp16.
 
