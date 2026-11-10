@@ -6,51 +6,24 @@
 
 The solution uses Google's Perch v2 ([paper](https://arxiv.org/abs/2508.04665), [model](https://www.kaggle.com/models/google/bird-vocalization-classifier/)) as a supervisor for a small CNN, through both of its outputs: its **logits** choose where to crop training clips and label unannotated species; its **embeddings** are a teacher the CNN learns to match.
 
-This repository is a from-scratch re-implementation of the solution's core ideas as a clean, tested pipeline. Every number below comes from runs of this code (EfficientNet-B0, two seeds per experiment, one fixed held-out split) and can be reproduced with the commands shown.
+This repository is a from-scratch re-implementation of the solution's core ideas as a clean, tested pipeline. Every held-out number below comes from runs of this code (EfficientNet-B0, two seeds per experiment, one fixed held-out split) and can be reproduced with the commands in [Reproduce](#reproduce); leaderboard numbers come from the competition submission.
 
-## Pipeline
+## Results at a glance
 
-```bash
-pip install -e ".[perch,notebooks]"
-export BIRDCLEF_DATA=/path/to/birdclef-2026
+Held-out soundscape macro ROC-AUC, each step added to the previous one:
 
-python -m birdclef.prepare --workers 8 --delete-src    # OGG → mono 16-bit WAV, 32 kHz
-mkdir -p models
-wget -O models/perch_v2_no_dft.onnx https://huggingface.co/justinchuby/Perch-onnx/resolve/main/perch_v2_no_dft.onnx
-python -c "import glob, shutil, kagglehub; p = kagglehub.model_download('google/bird-vocalization-classifier/tensorFlow2/perch_v2'); shutil.copy(glob.glob(f'{p}/**/labels.csv', recursive=True)[0], 'models/labels.csv')"
-python -m birdclef.perch --batch 64                    # Perch embeddings + logits, every 5 s window, 1 s stride
-python -m birdclef.postprocess                         # per-second normalized curves, trusted species
-python -m birdclef.train --selection random --pseudo --distill 1 --teacher-backend split \
-    --mixup 1 --holdout-unscored --epochs 30 --eval-every 3 --max-windows 12 --seeds 42 43 --out outputs/v2
+| Step | Soundscape AUC |
+|---|---|
+| Random crops, mixup | 0.889 |
+| + Perch: guided crops or embedding distillation | 0.920 |
+| + pseudo-label iteration 1 | 0.934 |
+| 8-model ensemble, smoothing with the neighbouring windows | 0.942* |
+| + site and hour priors | +0.002 to +0.003 on the leaderboard |
+| **Final submission** | **0.95 private, 0.96 public** |
 
-# iteration 1: pseudo-label the unlabelled soundscapes with both seeds, fine-tune each seed from its own checkpoint
-python -m birdclef.pseudo --out data/pseudo/iter1 --models \
-    outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed42_best.pt \
-    outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed43_best.pt
-A="--selection random --pseudo --distill 1 --teacher-backend split --holdout-unscored --pseudo-dir data/pseudo/iter1
-   --drop-path 0.1 --lr 3e-4 --epochs 15 --eval-every 3 --max-windows 12 --workers 4 --seeds 42 43"
-T="outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed{seed}_best.pt"
-python -m birdclef.train $A --pseudo-pow 1 --init $T --out outputs/iter1_e15_pow1
-python -m birdclef.train $A --pseudo-pow 1 --mixup 1 --init $T --out outputs/iter1_e15_pow1_mix2
-python -m birdclef.train $A --pseudo-pow 1.8 --init $T --out outputs/iter1_e15_pow1.8
-python -m birdclef.train $A --pseudo-pow 1.8 --mixup 1 --init $T --out outputs/iter1_e15_pow1.8_mix2
+Single models are means of two seeds at the last epoch. \*Each model's best epoch on the held-out split, so optimistic.
 
-# iteration 2: pseudo-labels from the four iteration-1 pow-1 models, fine-tuned from iteration 1 pow 1
-python -m birdclef.pseudo --out data/pseudo/iter2 --models outputs/iter1_e15_pow1{,_mix2}/*_best.pt
-A="--selection random --pseudo --distill 1 --teacher-backend split --holdout-unscored --pseudo-dir data/pseudo/iter2
-   --drop-path 0.2 --lr 3e-4 --epochs 25 --eval-every 3 --max-windows 12 --workers 4 --seeds 42 43"
-T="outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed{seed}_best.pt"
-python -m birdclef.train $A --pseudo-pow 1 --init $T --out outputs/iter2_e25_pow1
-python -m birdclef.train $A --pseudo-pow 1 --mixup 1 --init $T --out outputs/iter2_e25_pow1_mix2
-python -m birdclef.train $A --pseudo-pow 1.8 --init $T --out outputs/iter2_e25_pow1.8
-python -m birdclef.train $A --pseudo-pow 1.8 --mixup 1 --init $T --out outputs/iter2_e25_pow1.8_mix2
-
-# CPU inference: ONNX / OpenVINO benchmark, then site and hour priors on the ensemble
-# the 8 checkpoints of iterations 1 and 2 at pow 1, with and without mix2 (seeds 42 and 43)
-ENSEMBLE=$(ls outputs/iter1_e15_pow1{,_mix2}/*_best.pt outputs/iter2_e25_pow1{,_mix2}/*_best.pt)
-python -m birdclef.export --threads 4 --models $ENSEMBLE
-python -m birdclef.sitehour --models $ENSEMBLE
-```
+Engineering: the online Perch teacher runs **4.6× faster** with a TensorRT FP16 / CUDA FP32 split and no overflow; CPU inference of the 8-model ensemble runs **3.9× faster** with OpenVINO, about 2 minutes for the 600 test soundscapes.
 
 ## Method
 
@@ -76,7 +49,7 @@ python -m birdclef.sitehour --models $ENSEMBLE
 
 **Evaluation.** A random 20% of clips (7,109) and of labelled soundscapes (13 recordings, 156 segments) is held out by file. Labels with ≤ 10 training clips are not scored. Held-out soundscapes are still trained on for those unscored labels only (`--holdout-unscored`), with the scored labels masked and no Perch target. Macro ROC-AUC on held-out clips (max over 5 s windows) and soundscape segments, every 3 epochs.
 
-## Results
+## Training results
 
 30 epochs, seeds 42 and 43, value at the last epoch (mean, then per seed):
 
@@ -97,6 +70,23 @@ python -m birdclef.sitehour --models $ENSEMBLE
 - **Pseudo-labels add little with mixup** (+0.003 to +0.009); mixup's max-targets already teach multi-species crops.
 
 Per-epoch numbers: `results/history/`, `results/summary_per_seed.csv`.
+
+## Online Perch teacher
+
+Every mixed crop needs Perch's embedding computed on the fly. On 504 soundscape windows, batches of 32, compute capability 8.6 (`python -m birdclef.perch --benchmark`):
+
+| Backend | ms / batch | Speed-up | Non-finite | Min cosine vs CUDA FP32 |
+|---|---|---|---|---|
+| ONNX Runtime CUDA FP32 | 127.33 | 1.00× | 0 / 504 | — |
+| TensorRT FP16 | 30.87 | 4.12× | 10 / 504 | 0.477 |
+| TensorRT FP32 | 208.35 | 0.61× | 0 / 504 | 0.9989 |
+| **Split** | **27.77** | **4.59×** | **0 / 504** | **0.99998** |
+
+FP16 overflows, mostly in Perch's spectrogram front end. **Split** cuts Perch at its log spectrogram: front end in FP32 on CUDA, CNN in FP16 on TensorRT, and any overflowing row (9 of 504) recomputed in FP32. TensorRT 10 is required by `onnxruntime-gpu` ≤ 1.31:
+
+```bash
+pip install --extra-index-url https://pypi.nvidia.com "tensorrt-cu12-libs==10.16.1.11"
+```
 
 ## Pseudo-label iterations
 
@@ -151,6 +141,50 @@ On the competition leaderboard, these priors added +0.002 to +0.003 ROC-AUC on b
 
 - Training results are from single EfficientNet-B0 models (two seeds); they measure each technique rather than the leaderboard score. The inference sections use an 8-model ensemble of the same architecture.
 - The soundscape AUC rests on 13 recordings (7 from site S22) and 20 scored labels, so differences under ~0.01 are noise.
+
+## Reproduce
+
+```bash
+pip install -e ".[perch,notebooks]"
+export BIRDCLEF_DATA=/path/to/birdclef-2026
+
+python -m birdclef.prepare --workers 8 --delete-src    # OGG → mono 16-bit WAV, 32 kHz
+mkdir -p models
+wget -O models/perch_v2_no_dft.onnx https://huggingface.co/justinchuby/Perch-onnx/resolve/main/perch_v2_no_dft.onnx
+python -c "import glob, shutil, kagglehub; p = kagglehub.model_download('google/bird-vocalization-classifier/tensorFlow2/perch_v2'); shutil.copy(glob.glob(f'{p}/**/labels.csv', recursive=True)[0], 'models/labels.csv')"
+python -m birdclef.perch --batch 64                    # Perch embeddings + logits, every 5 s window, 1 s stride
+python -m birdclef.postprocess                         # per-second normalized curves, trusted species
+python -m birdclef.train --selection random --pseudo --distill 1 --teacher-backend split \
+    --mixup 1 --holdout-unscored --epochs 30 --eval-every 3 --max-windows 12 --seeds 42 43 --out outputs/v2
+
+# iteration 1: pseudo-label the unlabelled soundscapes with both seeds, fine-tune each seed from its own checkpoint
+python -m birdclef.pseudo --out data/pseudo/iter1 --models \
+    outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed42_best.pt \
+    outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed43_best.pt
+A="--selection random --pseudo --distill 1 --teacher-backend split --holdout-unscored --pseudo-dir data/pseudo/iter1
+   --drop-path 0.1 --lr 3e-4 --epochs 15 --eval-every 3 --max-windows 12 --workers 4 --seeds 42 43"
+T="outputs/v2/model_tf_efficientnet_b0_random_pseudo_distill_mixup_unscored_split_seed{seed}_best.pt"
+python -m birdclef.train $A --pseudo-pow 1 --init $T --out outputs/iter1_e15_pow1
+python -m birdclef.train $A --pseudo-pow 1 --mixup 1 --init $T --out outputs/iter1_e15_pow1_mix2
+python -m birdclef.train $A --pseudo-pow 1.8 --init $T --out outputs/iter1_e15_pow1.8
+python -m birdclef.train $A --pseudo-pow 1.8 --mixup 1 --init $T --out outputs/iter1_e15_pow1.8_mix2
+
+# iteration 2: pseudo-labels from the four iteration-1 pow-1 models, fine-tuned from iteration 1 pow 1
+python -m birdclef.pseudo --out data/pseudo/iter2 --models outputs/iter1_e15_pow1{,_mix2}/*_best.pt
+A="--selection random --pseudo --distill 1 --teacher-backend split --holdout-unscored --pseudo-dir data/pseudo/iter2
+   --drop-path 0.2 --lr 3e-4 --epochs 25 --eval-every 3 --max-windows 12 --workers 4 --seeds 42 43"
+T="outputs/iter1_e15_pow1/model_tf_efficientnet_b0_random_pseudo_distill_unscored_pl-iter1_split_seed{seed}_best.pt"
+python -m birdclef.train $A --pseudo-pow 1 --init $T --out outputs/iter2_e25_pow1
+python -m birdclef.train $A --pseudo-pow 1 --mixup 1 --init $T --out outputs/iter2_e25_pow1_mix2
+python -m birdclef.train $A --pseudo-pow 1.8 --init $T --out outputs/iter2_e25_pow1.8
+python -m birdclef.train $A --pseudo-pow 1.8 --mixup 1 --init $T --out outputs/iter2_e25_pow1.8_mix2
+
+# CPU inference: ONNX / OpenVINO benchmark, then site and hour priors on the ensemble
+# the 8 checkpoints of iterations 1 and 2 at pow 1, with and without mix2 (seeds 42 and 43)
+ENSEMBLE=$(ls outputs/iter1_e15_pow1{,_mix2}/*_best.pt outputs/iter2_e25_pow1{,_mix2}/*_best.pt)
+python -m birdclef.export --threads 4 --models $ENSEMBLE
+python -m birdclef.sitehour --models $ENSEMBLE
+```
 
 ## Code
 
