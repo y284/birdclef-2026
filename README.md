@@ -116,7 +116,9 @@ Per-epoch numbers: `results/history/iter1/`, `results/history/iter2/`, `results/
 
 ## CPU inference
 
-A submission scores about 600 one-minute soundscapes on CPU. Each soundscape is scored whole: one frame per second, max over each 5 s window, then each window gets + half of each neighbour ([illustration](results/inference_illustration.png)). The log-mel is computed once per soundscape in PyTorch and shared by every model; the CNNs are exported to ONNX from the log-mel to the frame logits.
+A submission scores about 600 one-minute soundscapes on CPU. Each soundscape is scored whole: one frame per second, max over each 5 s window, then each window gets + half of each neighbour. The log-mel is computed once per soundscape in PyTorch and shared by every model; the CNNs are exported to ONNX from the log-mel to the frame logits.
+
+![Submission inference on a 60 s soundscape](results/inference_illustration.png)
 
 Ensemble of 8 models (iterations 1 and 2 at pow 1, with and without mix2, two seeds each), 13 held-out soundscapes, AMD Ryzen 7 5700G, 4 threads (`python -m birdclef.export`). Log-mel: 0.019 s per soundscape. Time for the 8 CNNs:
 
@@ -202,7 +204,7 @@ src/birdclef/
   sitehour.py     site and hour priors
 tests/            CPU tests with synthetic audio and a small fake Perch ONNX model: pytest -q
 notebooks/        Perch curves and AUC analysis
-results/          histories, summaries, figures
+results/          histories, summaries, figures and their plot scripts
 ```
 
 ## Citation
